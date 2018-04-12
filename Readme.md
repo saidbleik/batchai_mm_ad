@@ -5,7 +5,7 @@ The solution is built on Microsoft's Azure stack and includes multiple cloud ser
 
 The business problem addressed in this walkthrough is: monitoring sensor measurements of multiple devices and predicting potential anomalies that might lead to failures across these devices. A typical example of this is as follows:
 
-     A manufacturing plant has sensors attached to its machines. The collected measurements are used to build machine learning models that can be used to predict whether a machine or a component would fail at some point in the future.
+ A manufacturing plant has sensors attached to its machines. The collected measurements are used to build machine learning models that can be used to predict whether a machine or a component would fail at some point in the future.
 
 Parallelization is key here as we would like to build many models concurrently, one for each sensor and on a regular basis.  
 
@@ -41,7 +41,7 @@ Now that Event Hubs is running and listening to incoming data, you can generate 
     "Value": 84.92
 }
 ```
-The source code of the app can be found [here](). The app uses the Azure C# SDK to send the messages to EVent Hubs asynchronously:
+The source code of the app can be found [here](https://github.com/saidbleik/batchai_mm_ad/data_simulator/Program.cs). The app uses the Azure C# SDK to send the messages to EVent Hubs asynchronously:
 
 ```CSharp
 using Microsoft.Azure.EventHubs;
@@ -92,7 +92,7 @@ Before we move on to the next steps, we need to create a blob storage service wi
 ## Training
 Given that we don't have explicit labels of anomalies in this scenario, as in many real-world scenarios, but rather a continuous stream of measurements, we will choose an unsupervised method to model normal behavior of sensors. In particular, we will use [One-class SVMs](http://scikit-learn.org/stable/modules/generated/sklearn.svm.OneClassSVM.html) which can learn a decision function around normal data points and can predict anomalies that are significantly different from the expected values. 
 
-As I mentioned before, the main goal of this example is to be able to train many models concurrently on a cluster of virtual machines. This can be achieved by running simultaneous jobs in an embarrassingly parallel fashion, where each job builds a model for one sensor, given some training data. I've created a simple Python [script]() that takes as input the sensor identifiers (device ID and tag) and a time range for which the training data will be queried. 
+As I mentioned before, the main goal of this example is to be able to train many models concurrently on a cluster of virtual machines. This can be achieved by running simultaneous jobs in an embarrassingly parallel fashion, where each job builds a model for one sensor, given some training data. I've created a simple Python [script](https://github.com/saidbleik/batchai_mm_ad/model/train.py) that takes as input the sensor identifiers (device ID and tag) and a time range for which the training data will be queried. 
 
 ```python
 device = sys.argv[1]
@@ -130,7 +130,7 @@ blob_service.create_blob_from_bytes( blob_container, model_name, pickle.dumps(pi
 ```
 
 ## Making Predictions
-Similarly, I've created a prediction [script]() that loads a trained model for a given sensor, retrieves the data values of a given time range, makes predictions, and stores them in CSV format on blob storage.  
+Similarly, I've created a prediction [script](https://github.com/saidbleik/batchai_mm_ad/model/predict.py) that loads a trained model for a given sensor, retrieves the data values of a given time range, makes predictions, and stores them in CSV format on blob storage.  
 
 ```python
 # load model
@@ -161,7 +161,7 @@ blob_service.create_blob_from_text(predictions_blob_container, res_file_name, re
 ```
 
 ## Creating Parallel Jobs
-Now that we have the training and predicting scripts ready, we can create multiple Batch AI jobs to execute those scripts concurrently for many sensors. Batch AI is an Azure cloud service that allows creating a cluster of virtual machine nodes and running async jobs on those machines in parallel. Batch AI also supports distributed training using popular deep learning tool kits, such as [CNTK]() and [Tensorflow](), where a single model can be trained across multiple nodes. For this example, I use custom jobs, where each job executes a Python script with a specific set of arguments. I've used the Azure CLI to create he Batch AI service (this can also be done through the portal):
+Now that we have the training and predicting scripts ready, we can create multiple Batch AI jobs to execute those scripts concurrently for many sensors. Batch AI is an Azure cloud service that allows creating a cluster of virtual machine nodes and running async jobs on those machines in parallel. Batch AI also supports distributed training using popular deep learning tool kits, such as CNTK and Tensorflow, where a single model can be trained across multiple nodes. For this example, I use custom jobs, where each job executes a Python script with a specific set of arguments. I've used the Azure CLI to create he Batch AI service (this can also be done through the portal):
 
 ```
 az login
@@ -170,7 +170,7 @@ az batchai cluster create -l eastus -g myresourcegroup -n myclustername -s Stand
 az batchai cluster show -g myresourcegroup -n myclustername
 ```
 
-Notice, from the commands above, that the cluster is made up of 2 Ubuntu [Data Science Virtual machines](https://azure.microsoft.com/en-us/services/virtual-machines/data-science-virtual-machines/) and that I've provided the blob account to be used as shared storage across the nodes (as filesystem mounts). The blob containers will be used to store the Python scripts, the serialized models and the predictions. To submit jobs, I've created another Python [script]() that logs in to the Batch AI service, creates a client and executes a command line program on one of the nodes. The script sends all the jobs at once to the cluster, where Batch AI manages the concurrent execution across the nodes. The same script can be used for both training and predicting by setting the command line argument in a config file. For example, to execute the training script created earlier, the command line string would be:
+Notice, from the commands above, that the cluster is made up of 2 Ubuntu [Data Science Virtual machines](https://azure.microsoft.com/en-us/services/virtual-machines/data-science-virtual-machines/) and that I've provided the blob account to be used as shared storage across the nodes (as filesystem mounts). The blob containers will be used to store the Python scripts, the serialized models and the predictions. To submit jobs, I've created another Python [script](https://github.com/saidbleik/batchai_mm_ad/batchai/submit_jobs.py) that logs in to the Batch AI service, creates a client and executes a command line program on one of the nodes. The script sends all the jobs at once to the cluster, where Batch AI manages the concurrent execution across the nodes. The same script can be used for both training and predicting by setting the command line argument in a config file. For example, to execute the training script created earlier, the command line string would be:
 
 ```sh
 "python /mnt/batch/tasks/shared/LS_root/mounts/bfs/train.py 2 3 2018-03-01 2018-03-02 /mnt/batch/tasks/shared/LS_root/mounts/bfs/train_config.json"
@@ -234,7 +234,7 @@ for device_id in device_ids:
         batchai_client.jobs.create(resource_group_name, job_name, params)
 ```
 
-To submit a prediction job, we can use the same script with a similar [config file]() that specifies a different command line (to execute the predictions Python script):
+To submit a prediction job, we can use the same script with a similar [config file](https://github.com/saidbleik/batchai_mm_ad/batchai/bai_pred_config.json) that specifies a different command line (to execute the predictions Python script):
 
 ```
 python /mnt/batch/tasks/shared/LS_root/mounts/bfs/predict.py {0} {1} {2} {3} {4}
@@ -244,7 +244,7 @@ python /mnt/batch/tasks/shared/LS_root/mounts/bfs/predict.py {0} {1} {2} {3} {4}
 
 For continuous execution of Batch AI jobs on a regular schedule, one can simply use a system task scheduler such as *cron jobs* to run parameterized shell scripts. 
 
-In our anomaly detection scenario, we might want to train models and make predictions for all sensors every day or every hour. For example, the following [shell script]() (*train.sh*) can be used on a linux machine (a local server, or a virtual machine) to submit jobs for models listed in the config file. The models would be trained on data collected within the past hour:
+In our anomaly detection scenario, we might want to train models and make predictions for all sensors every day or every hour. For example, the following [shell script](https://github.com/saidbleik/batchai_mm_ad/scheduler/train.sh) (*train.sh*) can be used on a linux machine (a local server, or a virtual machine) to submit jobs for models listed in the config file. The models would be trained on data collected within the past hour:
 
 ```sh
 #!/bin/bash
@@ -255,14 +255,16 @@ ts_to="$(date +"%Y-%m-%d %H:%M")"
 python submit_jobs.py "\"$ts_from\"" "\"$ts_to\"" /home/scheduser/bai_train_config.json
 ```
 
-Similarly, you can create a shell [script]() for making predictions and a cleanup [script]() to delete the Batch AI jobs that have finished running. Note that at the time of writing this walkthrough, a Batch AI job needs to be deleted manually before submitting a new job with the same name. 
+Similarly, you can create a shell [script](https://github.com/saidbleik/batchai_mm_ad/scheduler/pred.sh) for making predictions and a cleanup [script](https://github.com/saidbleik/batchai_mm_ad/scheduler/cleanup.sh) to delete the Batch AI jobs that have finished running. The scripts, along with their config files, need to be stored on the scheduler machine.
 
-These scripts can be automated through [cron jobs](https://help.ubuntu.com/community/CronHowto) by creating the following lines in a crontab [file]() and adding that file to the scheduler using the crontab commmand.
+Note that at the time of writing this document, a Batch AI job needs to be deleted manually before submitting a new job with the same name. 
+
+The scripts can be automated through [cron jobs](https://help.ubuntu.com/community/CronHowto) by creating the following lines in a crontab [file](https://github.com/saidbleik/batchai_mm_ad/scheduler/cron.txt) and adding that file to the scheduler using the *crontab* command. These cron jobs would perform training, predicting, and cleanup every hour at minutes 0, 20, and 40 respectively.
 
 ```sh
-0 * * * * . /home/scheduser/train.sh
-10 * * * * . /home/scheduser/predict.sh
-40 * * * * . /home/scheduser/cleanup.sh
+0 */1 * * * . /home/scheduser/train.sh
+20 */1 * * * . /home/scheduser/predict.sh
+40 */1 * * * . /home/scheduser/cleanup.sh
 ```
 
 ```sh
