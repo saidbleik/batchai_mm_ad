@@ -41,7 +41,7 @@ Now that Event Hubs is running and listening to incoming data, you can generate 
     "Value": 84.92
 }
 ```
-The source code of the app can be found [here](/data_simulator/Program.cs). The app uses the Azure C# SDK to send the messages to EVent Hubs asynchronously:
+The source code of the app can be found [here](data_simulator/Program.cs). The app uses the Azure C# SDK to send the messages to EVent Hubs asynchronously:
 
 ```CSharp
 using Microsoft.Azure.EventHubs;
@@ -92,7 +92,7 @@ Before we move on to the next steps, we need to create a blob storage service wi
 ## Training
 Given that we don't have explicit labels of anomalies in this scenario, as in many real-world scenarios, but rather a continuous stream of measurements, we will choose an unsupervised method to model normal behavior of sensors. In particular, we will use [One-class SVMs](http://scikit-learn.org/stable/modules/generated/sklearn.svm.OneClassSVM.html) which can learn a decision function around normal data points and can predict anomalies that are significantly different from the expected values. 
 
-As I mentioned before, the main goal of this example is to be able to train many models concurrently on a cluster of virtual machines. This can be achieved by running simultaneous jobs in an embarrassingly parallel fashion, where each job builds a model for one sensor, given some training data. I've created a simple Python [script](/model/train.py) that takes as input the sensor identifiers (device ID and tag) and a time range for which the training data will be queried. 
+As I mentioned before, the main goal of this example is to be able to train many models concurrently on a cluster of virtual machines. This can be achieved by running simultaneous jobs in an embarrassingly parallel fashion, where each job builds a model for one sensor, given some training data. I've created a simple Python [script](model/train.py) that takes as input the sensor identifiers (device ID and tag) and a time range for which the training data will be queried. 
 
 ```python
 device = sys.argv[1]
@@ -130,7 +130,7 @@ blob_service.create_blob_from_bytes( blob_container, model_name, pickle.dumps(pi
 ```
 
 ## Making Predictions
-Similarly, I've created a prediction [script](/model/predict.py) that loads a trained model for a given sensor, retrieves the data values of a given time range, makes predictions, and stores them in CSV format on blob storage.  
+Similarly, I've created a prediction [script](model/predict.py) that loads a trained model for a given sensor, retrieves the data values of a given time range, makes predictions, and stores them in CSV format on blob storage.  
 
 ```python
 # load model
@@ -170,7 +170,7 @@ az batchai cluster create -l eastus -g myresourcegroup -n myclustername -s Stand
 az batchai cluster show -g myresourcegroup -n myclustername
 ```
 
-Notice, from the commands above, that the cluster is made up of 2 Ubuntu [Data Science Virtual machines](https://azure.microsoft.com/en-us/services/virtual-machines/data-science-virtual-machines/) and that I've provided the blob account to be used as shared storage across the nodes (as filesystem mounts). The blob containers will be used to store the Python scripts, the serialized models and the predictions. To submit jobs, I've created another Python [script](/batchai/submit_jobs.py) that logs in to the Batch AI service, creates a client and executes a command line program on one of the nodes. The script sends all the jobs at once to the cluster, where Batch AI manages the concurrent execution across the nodes. The same script can be used for both training and predicting by setting the command line argument in a config file. For example, to execute the training script created earlier, the command line string would be:
+Notice, from the commands above, that the cluster is made up of 2 Ubuntu [Data Science Virtual machines](https://azure.microsoft.com/en-us/services/virtual-machines/data-science-virtual-machines/) and that I've provided the blob account to be used as shared storage across the nodes (as filesystem mounts). The blob containers will be used to store the Python scripts, the serialized models and the predictions. To submit jobs, I've created another Python [script](batchai/submit_jobs.py) that logs in to the Batch AI service, creates a client and executes a command line program on one of the nodes. The script sends all the jobs at once to the cluster, where Batch AI manages the concurrent execution across the nodes. The same script can be used for both training and predicting by setting the command line argument in a config file. For example, to execute the training script created earlier, the command line string would be:
 
 ```sh
 "python /mnt/batch/tasks/shared/LS_root/mounts/bfs/train.py 2 3 2018-03-01 2018-03-02 /mnt/batch/tasks/shared/LS_root/mounts/bfs/train_config.json"
@@ -234,7 +234,7 @@ for device_id in device_ids:
         batchai_client.jobs.create(resource_group_name, job_name, params)
 ```
 
-To submit a prediction job, we can use the same script with a similar [config file](/batchai/bai_pred_config.json) that specifies a different command line (to execute the predictions Python script):
+To submit a prediction job, we can use the same script with a similar [config file](batchai/bai_pred_config.json) that specifies a different command line (to execute the predictions Python script):
 
 ```
 python /mnt/batch/tasks/shared/LS_root/mounts/bfs/predict.py {0} {1} {2} {3} {4}
@@ -244,7 +244,7 @@ python /mnt/batch/tasks/shared/LS_root/mounts/bfs/predict.py {0} {1} {2} {3} {4}
 
 For continuous execution of Batch AI jobs on a regular schedule, one can simply use a system task scheduler such as *cron jobs* to run parameterized shell scripts. 
 
-In our anomaly detection scenario, we might want to train models and make predictions for all sensors every day or every hour. For example, the following [shell script](/scheduler/train.sh) (*train.sh*) can be used on a linux machine (a local server, or a virtual machine) to submit jobs for models listed in the config file. The models would be trained on data collected within the past hour:
+In our anomaly detection scenario, we might want to train models and make predictions for all sensors every day or every hour. For example, the following [shell script](scheduler/train.sh) (*train.sh*) can be used on a linux machine (a local server, or a virtual machine) to submit jobs for models listed in the config file. The models would be trained on data collected within the past hour:
 
 ```sh
 #!/bin/bash
@@ -255,11 +255,11 @@ ts_to="$(date +"%Y-%m-%d %H:%M")"
 python submit_jobs.py "\"$ts_from\"" "\"$ts_to\"" /home/scheduser/bai_train_config.json
 ```
 
-Similarly, you can create a shell [script](/scheduler/pred.sh) for making predictions and a cleanup [script](/scheduler/cleanup.sh) to delete the Batch AI jobs that have finished running. The scripts, along with their config files, need to be stored on the scheduler machine.
+Similarly, you can create a shell [script](scheduler/pred.sh) for making predictions and a cleanup [script](scheduler/cleanup.sh) to delete the Batch AI jobs that have finished running. The scripts, along with their config files, need to be stored on the scheduler machine.
 
 Note that at the time of writing this document, a Batch AI job needs to be deleted manually before submitting a new job with the same name. 
 
-The scripts can be automated through [cron jobs](https://help.ubuntu.com/community/CronHowto) by creating the following lines in a crontab [file](/scheduler/cron.txt) and adding that file to the scheduler using the *crontab* command. These cron jobs would perform training, predicting, and cleanup every hour at minutes 0, 20, and 40 respectively.
+The scripts can be automated through [cron jobs](https://help.ubuntu.com/community/CronHowto) by creating the following lines in a crontab [file](scheduler/cron.txt) and adding that file to the scheduler using the *crontab* command. These cron jobs would perform training, predicting, and cleanup every hour at minutes 0, 20, and 40 respectively.
 
 ```sh
 0 */1 * * * . /home/scheduser/train.sh
