@@ -259,7 +259,7 @@ Similarly, you can create a shell [script](https://github.com/saidbleik/batchai_
 
 Note that at the time of writing this document, a Batch AI job needs to be deleted manually before submitting a new job with the same name. 
 
-The scripts can be automated through [cron jobs](https://help.ubuntu.com/community/CronHowto) by creating the following lines in a crontab [file](https://github.com/saidbleik/batchai_mm_ad/scheduler/cron.txt) and adding that file to the scheduler using the *crontab* command. These cron jobs would perform training, predicting, and cleanup every hour at minutes 0, 20, and 40 respectively.
+The scripts can be automated through [cron jobs](https://help.ubuntu.com/community/CronHowto) by creating the following lines in a crontab [file](scheduler/cron.txt) and adding that file to the scheduler using the *crontab* command. These cron jobs would perform training, predicting, and cleanup every hour at minutes 0, 20, and 40 respectively.
 
 ```sh
 0 */1 * * * . /home/scheduser/train.sh
