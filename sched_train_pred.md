@@ -5,7 +5,7 @@ The solution is built on Microsoft's Azure stack and includes multiple cloud ser
 
 The business problem addressed in this walkthrough is: monitoring sensor measurements of multiple devices and predicting potential anomalies that might lead to failures across these devices. A typical example of this is as follows:
 
-     A manufacturing plant has sensors attached to its machines. The collected measurements are used to build machine learning models that can be used to predict whether a machine or a component would fail at some point in the future.
+ A manufacturing plant has sensors attached to its machines. The collected measurements are used to build machine learning models that can be used to predict whether a machine or a component would fail at some point in the future.
 
 Parallelization is key here as we would like to build many models concurrently, one for each sensor and on a regular basis.  
 
