@@ -1,0 +1,8 @@
+{
+  "TENANT_ID": "...",
+  "CLIENT": "...",
+  "KEY": "...",
+  "resource_group_name": "...",
+  "subscription_id": "...",
+  "job_name_prefix": "baimm_train"
+}

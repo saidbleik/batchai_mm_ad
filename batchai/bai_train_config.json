@@ -1,0 +1,16 @@
+{
+  "TENANT_ID": "...",
+  "CLIENT": "...",
+  "KEY": "...",
+  "resource_group_name": "...",
+  "subscription_id": "...",
+  "cluster_name": "baimmcluster",
+  "location": "eastus",
+  "command_line": "python /mnt/batch/tasks/shared/LS_root/mounts/bfs/train.py {0} {1} {2} {3} {4}",
+  "std_out_err_path_prefix": "/mnt/batch/tasks/shared/LS_root/mounts/bfs",
+  "config_file_path": "/mnt/batch/tasks/shared/LS_root/mounts/bfs/train_config.json",
+  "node_count": 2,
+  "device_ids": [ 1, 2, 3 ],
+  "tags": [ 1, 2, 3, 4, 5 ],
+  "job_name": "baimm_train{0}_{1}"
+}

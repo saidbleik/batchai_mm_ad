@@ -1,0 +1,8 @@
+{
+    "sql_con_string": "DRIVER={ODBC Driver 13 for SQL Server};PORT=1433;SERVER=[...].database.windows.net;PORT=1443;DATABASE=...;UID=...;PWD=...",
+    "sql_query": "SELECT [Value] FROM [SensorValues] WHERE [Device]={0} AND [Tag]={1} AND [TS] BETWEEN '{2}' AND '{3}'",
+    "blob_account": "...",
+    "blob_key": "...",
+    "blob_container": "models"
+}
+

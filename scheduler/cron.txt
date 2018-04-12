@@ -1,0 +1,3 @@
+0 * * * * . /home/scheduser/train.sh
+10 * * * * . /home/scheduser/predict.sh
+40 * * * * . /home/scheduser/cleanup.sh
