@@ -255,7 +255,7 @@ ts_to="$(date +"%Y-%m-%d %H:%M")"
 python submit_jobs.py "\"$ts_from\"" "\"$ts_to\"" /home/scheduser/bai_train_config.json
 ```
 
-Similarly, you can create a shell [script](scheduler/pred.sh) for making predictions and a cleanup [script](scheduler/cleanup.sh) to delete the Batch AI jobs that have finished running. The scripts, along with their config files, need to be stored on the scheduler machine.
+Similarly, you can create a shell [script](scheduler/pred.sh) for making predictions and a cleanup [script](scheduler/cleanup.sh) to delete the Batch AI jobs that have finished running. The scripts, along with their config files, need to be stored on the scheduler machine, which must have Python and the *azure* package installed.
 
 Note that at the time of writing this document, a Batch AI job needed to be deleted manually before submitting a new job with the same name. 
 
