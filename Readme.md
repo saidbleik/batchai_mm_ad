@@ -41,7 +41,7 @@ Now that Event Hubs is running and listening to incoming data, you can generate 
     "Value": 84.92
 }
 ```
-The source code of the app can be found [here](data_simulator/Program.cs). The app uses the Azure C# SDK to send the messages to EVent Hubs asynchronously:
+The source code of the app can be found [here](data_simulator/Program.cs). The app uses the Azure C# SDK to send the messages to Event Hubs asynchronously:
 
 ```CSharp
 using Microsoft.Azure.EventHubs;
@@ -161,7 +161,7 @@ blob_service.create_blob_from_text(predictions_blob_container, res_file_name, re
 ```
 
 ## Creating Parallel Jobs
-Now that we have the training and predicting scripts ready, we can create multiple Batch AI jobs to execute those scripts concurrently for many sensors. Batch AI is an Azure cloud service that allows creating a cluster of virtual machine nodes and running async jobs on those machines in parallel. Batch AI also supports distributed training using popular deep learning tool kits, such as CNTK and Tensorflow, where a single model can be trained across multiple nodes. For this example, I use custom jobs, where each job executes a Python script with a specific set of arguments. I've used the Azure CLI to create he Batch AI service (this can also be done through the portal):
+Now that we have the training and predicting scripts ready, we can create multiple Batch AI jobs to execute those scripts concurrently for many sensors. Batch AI is an Azure cloud service that allows creating a cluster of virtual machine nodes and running async jobs on those machines in parallel. Batch AI also supports distributed training using popular deep learning tool kits, such as CNTK and Tensorflow, where a single model can be trained across multiple nodes. For this example, I use custom jobs, where each job executes a Python script with a specific set of arguments. I've used the Azure CLI to create the Batch AI service (this can also be done through the portal):
 
 ```
 az login
@@ -257,7 +257,7 @@ python submit_jobs.py "\"$ts_from\"" "\"$ts_to\"" /home/scheduser/bai_train_conf
 
 Similarly, you can create a shell [script](scheduler/pred.sh) for making predictions and a cleanup [script](scheduler/cleanup.sh) to delete the Batch AI jobs that have finished running. The scripts, along with their config files, need to be stored on the scheduler machine.
 
-Note that at the time of writing this document, a Batch AI job needs to be deleted manually before submitting a new job with the same name. 
+Note that at the time of writing this document, a Batch AI job needed to be deleted manually before submitting a new job with the same name. 
 
 The scripts can be automated through [cron jobs](https://help.ubuntu.com/community/CronHowto) by creating the following lines in a crontab [file](scheduler/cron.txt) and adding that file to the scheduler using the *crontab* command. These cron jobs would perform training, predicting, and cleanup every hour at minutes 0, 20, and 40 respectively.
 
