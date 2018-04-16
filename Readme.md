@@ -170,7 +170,7 @@ az batchai cluster create -l eastus -g myresourcegroup -n myclustername -s Stand
 az batchai cluster show -g myresourcegroup -n myclustername
 ```
 
-Notice, from the commands above, that the cluster is made up of 2 Ubuntu [Data Science Virtual machines](https://azure.microsoft.com/en-us/services/virtual-machines/data-science-virtual-machines/) and that I've provided the blob account to be used as shared storage across the nodes (as filesystem mounts). The blob containers will be used to store the Python scripts, the serialized models and the predictions. To submit jobs, I've created another Python [script](batchai/submit_jobs.py) that logs in to the Batch AI service, creates a client and executes a command line program on one of the nodes. The script sends all the jobs at once to the cluster, where Batch AI manages the concurrent execution across the nodes. The same script can be used for both training and predicting by setting the command line argument in a config file. For example, to execute the training script created earlier, the command line string would be:
+Notice, from the commands above, that the cluster is made up of 2 Ubuntu [Data Science Virtual Machines](https://azure.microsoft.com/en-us/services/virtual-machines/data-science-virtual-machines/) and that I've provided the blob account to be used as shared storage across the nodes (as filesystem mounts). The blob containers will be used to store the Python scripts, the serialized models and the predictions. To submit jobs, I've created another Python [script](batchai/submit_jobs.py) that logs in to the Batch AI service, creates a client and executes a command line program on one of the nodes. The script sends all the jobs at once to the cluster, where Batch AI manages the concurrent execution across the nodes. The same script can be used for both training and predicting by setting the command line argument in a config file. For example, to execute the training script created earlier, the command line string would be:
 
 ```sh
 "python /mnt/batch/tasks/shared/LS_root/mounts/bfs/train.py 2 3 2018-03-01 2018-03-02 /mnt/batch/tasks/shared/LS_root/mounts/bfs/train_config.json"
@@ -270,6 +270,12 @@ The scripts can be automated through [cron jobs](https://help.ubuntu.com/communi
 ```sh
 crontab cron.txt
 ```
+
+
+## Links
+
+- https://docs.microsoft.com/en-us/azure/batch-ai/
+- https://github.com/Azure/BatchAI
 
 
 
