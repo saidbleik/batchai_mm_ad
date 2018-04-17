@@ -9,8 +9,9 @@ The business problem addressed in this walkthrough is: monitoring sensor measure
 
 Parallelization is key here as we would like to build many models concurrently, one for each sensor and on a regular basis. The diagram below shows the overall solution architecture.
 
+</br>
+
 ![Solution Architecture](images/Architecture.PNG)
-<p style="text-align: center;">Solution Architecture</p>
 
 
 ## Prerequisites
