@@ -7,7 +7,10 @@ The business problem addressed in this walkthrough is: monitoring sensor measure
 
  A manufacturing plant has sensors attached to its machines. The collected measurements are used to build machine learning models that can be used to predict whether a machine or a component would fail at some point in the future.
 
-Parallelization is key here as we would like to build many models concurrently, one for each sensor and on a regular basis.  
+Parallelization is key here as we would like to build many models concurrently, one for each sensor and on a regular basis. The diagram below shows the overall solution architecture.
+
+![Solution Architecture](images/Architecture.PNG)
+<p style="text-align: center;">Solution Architecture</p>
 
 
 ## Prerequisites
