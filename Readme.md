@@ -15,7 +15,7 @@ Parallelization is key here as we would like to build many models concurrently, 
 
 
 ## Prerequisites
-The solution requires setting up a number of cloud resources before building the pipeline. For convenience, these resources can be grouped under the same [resource group](https://docs.microsoft.com/en-us/azure/azure-resource-manager/resource-group-portal). You can follow the links below for more information on how to create these services. The simplest way is by using the [Azure Portal](https://portal.azure.com/), or alteratively, using the [Azure CLI](https://github.com/Azure/azure-cli).
+The solution requires setting up a number of cloud resources before building the pipeline. For convenience, these resources can be grouped under the same [resource group](https://docs.microsoft.com/en-us/azure/azure-resource-manager/resource-group-portal). You can follow the links below for more information on how to create these services. The simplest way is by using the [Azure Portal](https://portal.azure.com/), or alteratively, using the [Azure CLI](https://github.com/Azure/azure-cli). Make sure you create the resource group first and specify that group when creating the following services.
 
  - [Azure Event Hubs](https://azure.microsoft.com/en-us/services/event-hubs/)
  - [Azure Stream Analytics](https://azure.microsoft.com/en-us/services/stream-analytics/)
@@ -23,6 +23,23 @@ The solution requires setting up a number of cloud resources before building the
  - [Azure Blob](https://azure.microsoft.com/en-us/services/storage/blobs/)
  - [Azure Batch AI](https://azure.microsoft.com/en-us/services/batch-ai/)
 
+## Source Code Files and Locations
+To help you keep track of the locations of the source code and config files in this repository as you go through the following sections, you can refer to this mapping:
+
+    Blob Storage Containers
+        scripts
+            train.py, predict.py, train_config.json, predict_config.json
+        models
+            <trained models will be written here>
+        predictions
+            <predictions will be written here>
+
+    Scheduler VM
+        files system
+            train.sh, pred.sh, cleanup.sh, cron.txt
+            submit_jobs.py, cleanup.py
+            bai_train_config.json, bai_pred_config.json
+            bai_cleanup_train_config.json, bai_cleanup_pred_config.json
 
 ## Data Processing
 In this section, I describe the data simulation, data ingestion, and aggregation components. 
@@ -45,7 +62,7 @@ Now that Event Hubs is running and listening to incoming data, you can generate 
     "Value": 84.92
 }
 ```
-The source code of the app can be found [here](data_simulator/Program.cs). The app uses the Azure C# SDK to send the messages to Event Hubs asynchronously:
+The source code of the app can be found [here](data_simulator/Program.cs). The app uses the *Microsoft.Azure.EventHubs* NuGet package from the Azure C# SDK to send the messages to Event Hubs asynchronously:
 
 ```CSharp
 using Microsoft.Azure.EventHubs;
@@ -55,10 +72,28 @@ using Microsoft.Azure.EventHubs;
 await eventHubClient.SendAsync(new EventData(Encoding.UTF8.GetBytes(message)));
 ``` 
 
-### Stream Analytics
+### Stream Analytics and SQL Database
 In most cases, you would want to process the incoming streams of data and apply some aggregations, filtering, or feature selection, before building a model. This is particularly useful when the data is ingested at a very high frequency and an aggregated view is more useful for the application at hand, or when you need to perform moving windows operations on time series. 
 
-To do so, you can create an Azure Stream Analytics (ASA) service in the portal, specify the name, input, query and output. The input is simply the Event Hub we created. The query is a SQL-like command that applies the aggregation and/or filtering to the incoming stream of data. In this example, I compute the average value of a sensor measurement within tumbling windows of 5 seconds:
+To do so, you can use Azure Stream Analytics (ASA), which is a real-time analytics service 
+that allows processing streams of data using SQL-like queries. Before creating that service, you would need to have some kind of storage to store the data processed by ASA. For convenience, I use an Azure SQL Database instance, where I've created a table, named *SensorValues* with the schema shown below to store the processed results.
+
+```SQL
+CREATE TABLE [SensorValues] 
+(
+    [TS]     DATETIME   NOT NULL,
+    [Device] INT        NOT NULL,
+    [Tag]    INT        NOT NULL,
+    [Value]  FLOAT      NOT NULL
+)
+``` 
+The ASA service can be created in the portal, where you can provide a name for the service. When the service is created you can set the stream input/output and the query to perform aggregation, in the *Job Topology* section.
+
+The input is simply the Event Hub we created earlier.
+
+The output of the ASA query can be redirected to a number of storage services. You can see the supported options in the portal when you create the output for the Stream Analytics job. In my case, the output is the *SensorValues* table of the SQL Database.
+
+The query is a SQL-like command that applies the aggregation and/or filtering to the incoming stream of data. In this example, I compute the average value of a sensor measurement within tumbling windows of 5 seconds:
 
 ```SQL
 SELECT
@@ -76,22 +111,12 @@ GROUP BY
     TumblingWindow(second, 5)
 ```
 
-### SQL Database
-The output of the ASA query can be redirected to some storage service. You can see the supported options in the portal when you create the output for the Stream Analytics job. For convenience, I use an Azure SQL Database instance, where I've created a table, named *SensorValues* with the schema shown below to store the processed results, and set the ASA output to that table:
 
-```SQL
-CREATE TABLE [SensorValues] 
-(
-    [TS]     DATETIME   NOT NULL,
-    [Device] INT        NOT NULL,
-    [Tag]    INT        NOT NULL,
-    [Value]  FLOAT      NOT NULL
-)
-```
 Once the ASA job is started, you can look into the *SensorValues* table and verify that data is accumulating there. This is the data we will use for training the anomaly detection models and for making predictions as well.
 
+
 ## Blob Storage
-Before we move on to the next steps, we need to create a blob storage service with two containers to store the outputs of the training and prediction jobs. We will also use these containers to store the Python training and prediction scripts. Note that these containers will be shared across the nodes of the Batch AI cluster, in the form of filesystem mounts. This allows the virtual machines to read and write concurrently during the execution of the parallel jobs. I've named my containers *models* and *predictions* and saved the blob account name and key so that I can reference them later in the scripts (these can be found in the *Access keys* section of the storage account service through the portal).  
+Before we move on to the next steps, we need to create a blob storage service with two containers to store the outputs of the training and prediction jobs. We will also create another container to store the Python training and prediction scripts. Note that the scripts container will be shared across the nodes of the Batch AI cluster, in the form of filesystem mount. This allows the virtual machines to access the required script and create a corresponding Python command during the execution of the parallel jobs. I've named my containers *models*, *predictions*, and *scripts* and saved the blob account name and key so that I can reference them later in the scripts (these can be found in the *Access keys* section of the storage account service through the portal).  
 
 ## Training
 Given that we don't have explicit labels of anomalies in this scenario, as in many real-world scenarios, but rather a continuous stream of measurements, we will choose an unsupervised method to model normal behavior of sensors. In particular, we will use [One-class SVMs](http://scikit-learn.org/stable/modules/generated/sklearn.svm.OneClassSVM.html) which can learn a decision function around normal data points and can predict anomalies that are significantly different from the expected values. 
@@ -105,7 +130,7 @@ ts_from = sys.argv[3]
 ts_to = sys.argv[4]
 ```
 
-The script also reads in a config file that contains the SQL Database connection string that I connect to through the *pyodbc* package, and the blob storage account info to be used for storing the trained models, using the *azure* package.  
+The script also reads in a [config file](model/train_config.json) that contains the SQL Database connection string that I connect to through the *pyodbc* package, and the blob storage account info to be used for storing the trained models, using the *azure* package.  
 
 ```python
 config_file = sys.argv[5]
@@ -134,7 +159,7 @@ blob_service.create_blob_from_bytes( blob_container, model_name, pickle.dumps(pi
 ```
 
 ## Making Predictions
-Similarly, I've created a prediction [script](model/predict.py) that loads a trained model for a given sensor, retrieves the data values of a given time range, makes predictions, and stores them in CSV format on blob storage.  
+Similarly, I've created a prediction [script](model/predict.py) (and a corresponding [config file](model/predict_config.json)) that loads a trained model for a given sensor, retrieves the data values of a given time range, makes predictions, and stores them in CSV format on blob storage.  
 
 ```python
 # load model
@@ -170,11 +195,11 @@ Now that we have the training and predicting scripts ready, we can create multip
 ```
 az login
 az account set -s "mysubscription"
-az batchai cluster create -l eastus -g myresourcegroup -n myclustername -s Standard_NC6 -i UbuntuDSVM --min 2 --max 2 -u myuser -p mypass --storage-account-name mystoragename --storage-account-key mystoragekey --container-name myblobcontainer 
+az batchai cluster create -l eastus -g myresourcegroup -n myclustername -s Standard_NC6 -i UbuntuDSVM --min 2 --max 2 -u myuser -p mypass --storage-account-name mystoragename --storage-account-key mystoragekey --container-name scripts 
 az batchai cluster show -g myresourcegroup -n myclustername
 ```
 
-Notice, from the commands above, that the cluster is made up of 2 Ubuntu [Data Science Virtual Machines](https://azure.microsoft.com/en-us/services/virtual-machines/data-science-virtual-machines/) and that I've provided the blob account to be used as shared storage across the nodes (as filesystem mounts). The blob containers will be used to store the Python scripts, the serialized models and the predictions. To submit jobs, I've created another Python [script](batchai/submit_jobs.py) that logs in to the Batch AI service, creates a client and executes a command line program on one of the nodes. The script sends all the jobs at once to the cluster, where Batch AI manages the concurrent execution across the nodes. The same script can be used for both training and predicting by setting the command line argument in a config file. For example, to execute the training script created earlier, the command line string would be:
+Notice, from the commands above, that the cluster is made up of 2 Ubuntu [Data Science Virtual Machines](https://azure.microsoft.com/en-us/services/virtual-machines/data-science-virtual-machines/). These machines come with Python and the *azure* package pre-installed. These are needed to execute the scripts. I've also provided the blob account to be used as shared storage across the nodes (as filesystem mounts). The blob container will be used to store the Python scripts. To submit jobs, I've created another Python [script](batchai/submit_jobs.py) that logs in to the Batch AI service, creates a client and executes a command line program on one of the nodes. The script sends all the jobs at once to the cluster, where Batch AI manages the concurrent execution across the nodes. The same script can be used for both training and predicting by setting the command line argument in a config file. For example, to execute the training script created earlier, the command line string would be:
 
 ```sh
 "python /mnt/batch/tasks/shared/LS_root/mounts/bfs/train.py 2 3 2018-03-01 2018-03-02 /mnt/batch/tasks/shared/LS_root/mounts/bfs/train_config.json"
@@ -232,8 +257,7 @@ for device_id in device_ids:
                                                                          cluster.id),
                                                                      node_count=node_count,
                                                                      std_out_err_path_prefix=std_out_err_path_prefix,
-                                                                     custom_toolkit_settings=custom_settings
-                                                                     )
+                                                                     custom_toolkit_settings=custom_settings)
 
         batchai_client.jobs.create(resource_group_name, job_name, params)
 ```

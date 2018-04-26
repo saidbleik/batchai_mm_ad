@@ -1,4 +1,4 @@
 az login
 az account set -s "mysubscription"
-az batchai cluster create -l eastus -g myresourcegroup -n myclustername -s Standard_NC6 -i UbuntuDSVM --min 2 --max 2 -u myuser -p mypass --storage-account-name mystoragename --storage-account-key mystoragekey --container-name myblobcontainer 
+az batchai cluster create -l eastus -g myresourcegroup -n myclustername -s Standard_NC6 -i UbuntuDSVM --min 2 --max 2 -u myuser -p mypass --storage-account-name mystoragename --storage-account-key mystoragekey --container-name scripts 
 az batchai cluster show -g myresourcegroup -n myclustername
