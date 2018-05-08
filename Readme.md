@@ -207,7 +207,9 @@ Notice, from the commands above, that the cluster is made up of 2 Ubuntu [Data S
 
 This command trains a model for the sensor with "device ID"=2, "tag"=3 and values collected between 2018-03-01 and 2018-03-02. The *train_config.json* file has the input and output connections' details. The mount path, used here to locate the Python script and the config file, refers to the blob storage container that was specified when creating the Batch AI cluster and is mapped to the filesystem mount on the nodes. Note that these files have to be placed in the container before submitting a job.
 
-The main steps of the job submission script are shown below. I read the lists of devices and tags from the config file and submit a job for each pair (these identify a specific sensor).
+The main steps of the job submission script are shown below. I read the lists of devices and tags from a [config file](batchai/bai_train_config.json) and submit a job for each pair (these identify a specific sensor).
+
+The Python script uses service principal authentication. You can create service principal credentials as shown [here](https://github.com/Azure/BatchAI/tree/master/recipes) and add them to your config file. 
 
 ```python
 config_file = sys.argv[3]
