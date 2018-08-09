@@ -209,7 +209,7 @@ This command trains a model for the sensor with "device ID"=2, "tag"=3 and value
 
 The main steps of the job submission script are shown below. I read the lists of devices and tags from a [config file](batchai/bai_train_config.json) and submit a job for each pair (these identify a specific sensor).
 
-The Python script uses service principal authentication. You can create service principal credentials as shown [here](https://github.com/Azure/BatchAI/tree/master/recipes) and add them to your config file. 
+The Python script uses service principal authentication. You can create service principal credentials as shown [here](https://docs.microsoft.com/en-us/python/azure/python-sdk-azure-authenticate?view=azure-python) and add them to your config file. 
 
 ```python
 config_file = sys.argv[3]
